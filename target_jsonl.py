@@ -72,10 +72,10 @@ def persist_messages(
                 
                 s3 = boto3.resource('s3')
                 s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
+                json_d = json.dumps(o['record']) + '\n'
                 s3object.put(
-                    Body=(bytes(json.dumps(o['record'])+'\n'.encode('UTF-8')))
+                    Body=(bytes(json_d.encode('UTF-8')))
                     )
-
             else:
                 if destination_path:
                     Path(destination_path).mkdir(parents=True, exist_ok=True)
