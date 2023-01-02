@@ -8,6 +8,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+import boto3
 
 import singer
 from jsonschema import Draft4Validator, FormatChecker
@@ -29,7 +30,10 @@ def persist_messages(
     messages,
     destination_path,
     custom_name=None,
-    do_timestamp_file=True
+    do_timestamp_file=True,
+    write_to_s3=True,
+    s3_bucket=None,
+    s3_prefix=None,
 ):
     state = None
     schemas = {}
@@ -59,14 +63,28 @@ def persist_messages(
                 raise e
 
             filename = (custom_name or o['stream']) + timestamp_file_part + '.jsonl'
-            if destination_path:
-                Path(destination_path).mkdir(parents=True, exist_ok=True)
-            filename = os.path.expanduser(os.path.join(destination_path, filename))
 
-            with open(filename, 'a', encoding='utf-8') as json_file:
-                json_file.write(json.dumps(o['record']) + '\n')
+            if write_to_s3:
+                if not s3_bucket:
+                    raise Exception(f"Value {s3_bucket} must be provided because the write_to_s3 flag is set to True")
+                if not s3_prefix:
+                    raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
+                
+                s3 = boto3.resource('s3')
+                s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
+                s3object.put(
+                    Body=(bytes(json.dumps(json_data)+'\n'.encode('UTF-8')))
+                    )
 
-            state = None
+            else:
+                if destination_path:
+                    Path(destination_path).mkdir(parents=True, exist_ok=True)
+                filename = os.path.expanduser(os.path.join(destination_path, filename))
+
+                with open(filename, 'a', encoding='utf-8') as json_file:
+                    json_file.write(json.dumps(o['record']) + '\n')
+
+                state = None
         elif message_type == 'STATE':
             logger.debug('Setting state to {}'.format(o['value']))
             state = o['value']
@@ -98,7 +116,10 @@ def main():
         input_messages,
         config.get('destination_path', ''),
         config.get('custom_name', ''),
-        config.get('do_timestamp_file', True)
+        config.get('do_timestamp_file', True),
+        config.get('write_to_s3', True),
+        config.get('s3_bucket', ''),
+        config.get('s3_prefix', '')
     )
 
     emit_state(state)
