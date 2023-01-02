@@ -1,5 +1,8 @@
 {
     "destination_path": "",
     "custom_name": "",
-    "do_timestamp_file": true
+    "do_timestamp_file": true,
+    "write_to_s3":true,
+    "s3_bucket":"",
+    "s3_prefix":""
 }
