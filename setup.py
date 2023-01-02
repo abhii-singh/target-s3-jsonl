@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
     readme = f.read()
 
 setup(
-    name='target-s3-jsonl',
+    name='target-jsonl',
     version='0.1.4',
     description='Singer.io target for writing JSON Line files',
     long_description=readme,
@@ -19,6 +19,6 @@ setup(
     install_requires=['jsonschema==2.6.0', 'singer-python==5.8.0', 'adjust-precision-for-schema==0.3.3', 'boto3==1.26.41'],
     entry_points='''
           [console_scripts]
-          target-jsonl=target_s3_jsonl:main
+          target-jsonl=target_jsonl:main
       ''',
 )
