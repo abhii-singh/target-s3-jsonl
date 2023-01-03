@@ -43,7 +43,8 @@ def persist_messages(
 
     timestamp_file_part = '-' + datetime.now().strftime('%Y%m%dT%H%M%S') if do_timestamp_file else ''
 
-    # s3_data_to_write = ""
+    s3_data_to_write = []
+    s3_file = ""
     # s3 = boto3.resource('s3')
     # s3object = None
     for message in messages:
@@ -75,10 +76,10 @@ def persist_messages(
                     raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
                 
                 # s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
-                # s3_data_to_write += json.dumps(o['record']) + '\n'
-                tp = {'min_part_size': 5 * 1024**2}
-                with s_open(f's3://{s3_bucket}/{s3_prefix}{filename}', 'wb', transport_params=tp, encoding='utf-8') as json_file:
-                    json_file.write(json.dumps(o['record']) + '\n')
+                s3_data_to_write.append(json.dumps(o['record']) + '\n')
+                s3_file = filename
+                #with s_open(f's3://{s3_bucket}/{s3_prefix}{filename}', 'wb', encoding='utf-8') as json_file:
+                #    json_file.write(json.dumps(o['record']) + '\n')
             else:
                 if destination_path:
                     Path(destination_path).mkdir(parents=True, exist_ok=True)
@@ -103,6 +104,12 @@ def persist_messages(
     #s3object.put(
     #                Body=(bytes(s3_data_to_write[:-1].encode('UTF-8')))
     #                )
+    s3 = boto3.client('s3')
+    s3.put_object(
+        Body=str(s3_data_to_write)[1:-1],
+        Bucket=s3_bucket,
+        Key=f'{s3_prefix}{s3_file}'
+    )
 
     return state
 
