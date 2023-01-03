@@ -76,7 +76,7 @@ def persist_messages(
                     raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
                 
                 # s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
-                s3_data_to_write.append(json.dumps(o['record']) + '\n')
+                s3_data_to_write.append(json.dumps(o['record']))
                 s3_file = filename
                 #with s_open(f's3://{s3_bucket}/{s3_prefix}{filename}', 'wb', encoding='utf-8') as json_file:
                 #    json_file.write(json.dumps(o['record']) + '\n')
@@ -106,7 +106,7 @@ def persist_messages(
     #                )
     s3 = boto3.client('s3')
     s3.put_object(
-        Body=str(s3_data_to_write)[1:-1],
+        Body='\n'.join(s3_data_to_write),
         Bucket=s3_bucket,
         Key=f'{s3_prefix}{s3_file}'
     )
