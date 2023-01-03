@@ -42,7 +42,7 @@ def persist_messages(
 
     timestamp_file_part = '-' + datetime.now().strftime('%Y%m%dT%H%M%S') if do_timestamp_file else ''
 
-    s3_data_to_write = []
+    s3_data_to_write = ""
     s3 = boto3.resource('s3')
     s3object = None
     for message in messages:
@@ -73,7 +73,7 @@ def persist_messages(
                 if not s3_prefix:
                     raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
                 s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
-                s3_data_to_write.append(json.dumps(o['record']) + '\n')
+                s3_data_to_write += json.dumps(o['record']) + '\n'
             else:
                 if destination_path:
                     Path(destination_path).mkdir(parents=True, exist_ok=True)
@@ -96,7 +96,7 @@ def persist_messages(
             logger.warning("Unknown message type {} in message {}".format(o['type'], o))
     
     s3object.put(
-                    Body=(bytes(str(s3_data_to_write)[1:-1].encode('UTF-8')))
+                    Body=(bytes(s3_data_to_write[:-1].encode('UTF-8')))
                     )
 
     return state
