@@ -44,7 +44,7 @@ def persist_messages(
 
     s3_data_to_write = []
     s3 = boto3.resource('s3')
-    s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
+    s3object = None
     for message in messages:
         try:
             o = singer.parse_message(message).asdict()
@@ -72,6 +72,7 @@ def persist_messages(
                     raise Exception(f"Value {s3_bucket} must be provided because the write_to_s3 flag is set to True")
                 if not s3_prefix:
                     raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
+                s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
                 s3_data_to_write.append(json.dumps(o['record']) + '\n')
             else:
                 if destination_path:
