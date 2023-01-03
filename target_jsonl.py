@@ -42,6 +42,9 @@ def persist_messages(
 
     timestamp_file_part = '-' + datetime.now().strftime('%Y%m%dT%H%M%S') if do_timestamp_file else ''
 
+    s3_data_to_write = []
+    s3 = boto3.resource('s3')
+    s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
     for message in messages:
         try:
             o = singer.parse_message(message).asdict()
@@ -69,13 +72,7 @@ def persist_messages(
                     raise Exception(f"Value {s3_bucket} must be provided because the write_to_s3 flag is set to True")
                 if not s3_prefix:
                     raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
-                
-                s3 = boto3.resource('s3')
-                s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
-                json_d = json.dumps(o['record']) + '\n'
-                s3object.put(
-                    Body=(bytes(json_d.encode('UTF-8')))
-                    )
+                s3_data_to_write.append(json.dumps(o['record']) + '\n')
             else:
                 if destination_path:
                     Path(destination_path).mkdir(parents=True, exist_ok=True)
@@ -96,6 +93,10 @@ def persist_messages(
             key_properties[stream] = o['key_properties']
         else:
             logger.warning("Unknown message type {} in message {}".format(o['type'], o))
+    
+    s3object.put(
+                    Body=(bytes(str(s3_data_to_write)[1:-1].encode('UTF-8')))
+                    )
 
     return state
 
