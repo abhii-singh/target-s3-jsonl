@@ -76,7 +76,7 @@ def persist_messages(
                 
                 # s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
                 # s3_data_to_write += json.dumps(o['record']) + '\n'
-                with open(f'{s3_bucket}/{s3_prefix}{filename}', 'a', encoding='utf-8') as json_file:
+                with open(f's3://{s3_bucket}/{s3_prefix}{filename}', 'a', encoding='utf-8') as json_file:
                     json_file.write(json.dumps(o['record']) + '\n')
             else:
                 if destination_path:
