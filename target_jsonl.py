@@ -98,7 +98,7 @@ def persist_messages(
         # create a s3 obj and upload (which uses multipart)
         s3_client = boto3.client('s3')
         try:
-            response = s3_client.upload_file(local_filename, s3_bucket, f'{s3_prefix}{s3_filename}')
+            response = s3_client.upload_file(local_filename, s3_bucket, f'{s3_prefix}{s3_filename}.gz')
         except ClientError as e:
             logger.error(e)
         return False
