@@ -9,7 +9,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 import boto3
-from smart_open import open as s_open
+import gzip
+from botocore.exceptions import ClientError
 
 import singer
 from jsonschema import Draft4Validator, FormatChecker
@@ -43,10 +44,8 @@ def persist_messages(
 
     timestamp_file_part = '-' + datetime.now().strftime('%Y%m%dT%H%M%S') if do_timestamp_file else ''
 
-    s3_data_to_write = []
-    s3_file = ""
-    # s3 = boto3.resource('s3')
-    # s3object = None
+    s3_filename = None
+    local_filename = None
     for message in messages:
         try:
             o = singer.parse_message(message).asdict()
@@ -69,24 +68,13 @@ def persist_messages(
 
             filename = (custom_name or o['stream']) + timestamp_file_part + '.jsonl'
 
-            if write_to_s3:
-                if not s3_bucket:
-                    raise Exception(f"Value {s3_bucket} must be provided because the write_to_s3 flag is set to True")
-                if not s3_prefix:
-                    raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
-                
-                # s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
-                s3_data_to_write.append(json.dumps(o['record']))
-                s3_file = filename
-                #with s_open(f's3://{s3_bucket}/{s3_prefix}{filename}', 'wb', encoding='utf-8') as json_file:
-                #    json_file.write(json.dumps(o['record']) + '\n')
-            else:
-                if destination_path:
-                    Path(destination_path).mkdir(parents=True, exist_ok=True)
-                filename = os.path.expanduser(os.path.join(destination_path, filename))
-
-                with open(filename, 'a', encoding='utf-8') as json_file:
-                    json_file.write(json.dumps(o['record']) + '\n')
+            s3_filename = filename
+            if destination_path:
+                Path(destination_path).mkdir(parents=True, exist_ok=True)
+            filename = os.path.expanduser(os.path.join(destination_path, filename))
+            local_filename = filename
+            with gzip.open(filename, 'a', encoding='utf-8') as json_file:
+                json_file.write(json.dumps(o['record']) + '\n')
 
                 state = None
         elif message_type == 'STATE':
@@ -101,16 +89,19 @@ def persist_messages(
         else:
             logger.warning("Unknown message type {} in message {}".format(o['type'], o))
     
-    #s3object.put(
-    #                Body=(bytes(s3_data_to_write[:-1].encode('UTF-8')))
-    #                )
-    s3 = boto3.client('s3')
-    s3.put_object(
-        Body='\n'.join(s3_data_to_write),
-        Bucket=s3_bucket,
-        Key=f'{s3_prefix}{s3_file}'
-    )
-
+    if write_to_s3:
+        if not s3_bucket:
+            raise Exception(f"Value {s3_bucket} must be provided because the write_to_s3 flag is set to True")
+        if not s3_prefix:
+            raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
+        
+        # create a s3 obj and upload (which uses multipart)
+        s3_client = boto3.client('s3')
+        try:
+            response = s3_client.upload_file(local_filename, s3_bucket, f'{s3_prefix}{s3_filename}')
+        except ClientError as e:
+            logger.error(e)
+        return False
     return state
 
 
