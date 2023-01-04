@@ -73,8 +73,9 @@ def persist_messages(
                 Path(destination_path).mkdir(parents=True, exist_ok=True)
             filename = os.path.expanduser(os.path.join(destination_path, filename))
             local_filename = filename
-            with gzip.open(filename, 'a', encoding='utf-8') as json_file:
-                json_file.write(json.dumps(o['record']) + '\n')
+            with gzip.open(filename, 'a') as json_file:
+                json_d = json.dumps(o['record']) + '\n'
+                json_file.write(json_d.encode('utf-8'))
 
                 state = None
         elif message_type == 'STATE':
