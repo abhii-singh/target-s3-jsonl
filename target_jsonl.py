@@ -66,14 +66,14 @@ def persist_messages(
                 logger.error(f"Failed parsing the json schema for stream: {o['stream']}.")
                 raise e
 
-            filename = (custom_name or o['stream']) + timestamp_file_part + '.jsonl'
+            filename = (custom_name or o['stream']) + timestamp_file_part + '.json'
 
             s3_filename = filename
             if destination_path:
                 Path(destination_path).mkdir(parents=True, exist_ok=True)
             filename = os.path.expanduser(os.path.join(destination_path, filename))
             local_filename = filename
-            with gzip.open(filename, 'a') as json_file:
+            with gzip.open(f'{filename}.gz', 'a') as json_file:
                 json_d = json.dumps(o['record']) + '\n'
                 json_file.write(json_d.encode('utf-8'))
 
@@ -88,8 +88,7 @@ def persist_messages(
             validators[stream] = Draft4Validator((o['schema']))
             key_properties[stream] = o['key_properties']
         else:
-            logger.warning("Unknown message type {} in message {}".format(o['type'], o))
-    
+            logger.warning("Unknown message type {} in message {}".format(o['type'], o))   
     if write_to_s3:
         if not s3_bucket:
             raise Exception(f"Value {s3_bucket} must be provided because the write_to_s3 flag is set to True")
