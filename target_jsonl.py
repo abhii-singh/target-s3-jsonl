@@ -72,8 +72,8 @@ def persist_messages(
             if destination_path:
                 Path(destination_path).mkdir(parents=True, exist_ok=True)
             filename = os.path.expanduser(os.path.join(destination_path, filename))
-            local_filename = filename
-            with gzip.open(f'{filename}.gz', 'a') as json_file:
+            local_filename = f'{filename}.gz'
+            with gzip.open(local_filename, 'a') as json_file:
                 json_d = json.dumps(o['record']) + '\n'
                 json_file.write(json_d.encode('utf-8'))
 
