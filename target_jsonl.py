@@ -47,6 +47,7 @@ def persist_messages(
     s3_filename = None
     local_filename = None
     for message in messages:
+        logger.warning("in messages for")
         try:
             o = singer.parse_message(message).asdict()
         except json.decoder.JSONDecodeError:
@@ -54,6 +55,7 @@ def persist_messages(
             raise
         message_type = o['type']
         if message_type == 'RECORD':
+            logger.warning("in message_type if")
             if o['stream'] not in schemas:
                 raise Exception(
                     "A record for stream {}"
@@ -88,7 +90,8 @@ def persist_messages(
             validators[stream] = Draft4Validator((o['schema']))
             key_properties[stream] = o['key_properties']
         else:
-            logger.warning("Unknown message type {} in message {}".format(o['type'], o))   
+            logger.warning("Unknown message type {} in message {}".format(o['type'], o))
+    logger.warning("now write to s3")
     if write_to_s3:
         if not s3_bucket:
             raise Exception(f"Value {s3_bucket} must be provided because the write_to_s3 flag is set to True")
