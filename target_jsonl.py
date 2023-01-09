@@ -11,7 +11,6 @@ from pathlib import Path
 import boto3
 import gzip
 from botocore.exceptions import ClientError
-from smart_open import open as s_open
 
 import singer
 from jsonschema import Draft4Validator, FormatChecker
@@ -47,7 +46,6 @@ def persist_messages(
 
     s3_filename = None
     local_filename = None
-    is_ready_for_s3 = False
     for message in messages:
         try:
             o = singer.parse_message(message).asdict()
@@ -70,24 +68,14 @@ def persist_messages(
 
             filename = (custom_name or o['stream']) + timestamp_file_part + '.json'
 
-            if write_to_s3:
-                if not s3_bucket:
-                    raise Exception(f"Value {s3_bucket} must be provided because the write_to_s3 flag is set to True")
-                if not s3_prefix:
-                    raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
-                
-                # s3object = s3.Object(s3_bucket, f'{s3_prefix}{filename}')
-                # s3_data_to_write += json.dumps(o['record']) + '\n'
-                tp = {'min_part_size': 5 * 1024**2}
-                with s_open(f's3://{s3_bucket}/{s3_prefix}{filename}', 'wb', transport_params=tp, encoding='utf-8') as json_file:
-                    json_file.write(json.dumps(o['record']) + '\n')
-            else:
-                if destination_path:
-                    Path(destination_path).mkdir(parents=True, exist_ok=True)
-                filename = os.path.expanduser(os.path.join(destination_path, filename))
-
-                with open(filename, 'a', encoding='utf-8') as json_file:
-                    json_file.write(json.dumps(o['record']) + '\n')
+            s3_filename = filename
+            if destination_path:
+                Path(destination_path).mkdir(parents=True, exist_ok=True)
+            filename = os.path.expanduser(os.path.join(destination_path, filename))
+            local_filename = f'{filename}.gz'
+            with gzip.open(local_filename, 'a') as json_file:
+                json_d = json.dumps(o['record']) + '\n'
+                json_file.write(json_d.encode('utf-8'))
 
                 state = None
         elif message_type == 'STATE':
@@ -100,20 +88,20 @@ def persist_messages(
             validators[stream] = Draft4Validator((o['schema']))
             key_properties[stream] = o['key_properties']
         else:
-            logger.warning("Unknown message type {} in message {}".format(o['type'], o))
-    if is_ready_for_s3:
-        if write_to_s3:
-            if not s3_bucket:
-                raise Exception(f"Value {s3_bucket} must be provided because the write_to_s3 flag is set to True")
-            if not s3_prefix:
-                raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
-            
-            # create a s3 obj and upload (which uses multipart)
-            s3_client = boto3.client('s3')
-            try:
-                response = s3_client.upload_file(local_filename, s3_bucket, f'{s3_prefix}{s3_filename}.gz')
-            except ClientError as e:
-                logger.error(e)
+            logger.warning("Unknown message type {} in message {}".format(o['type'], o))   
+    if write_to_s3:
+        if not s3_bucket:
+            raise Exception(f"Value {s3_bucket} must be provided because the write_to_s3 flag is set to True")
+        if not s3_prefix:
+            raise Exception(f"Value {s3_prefix} must be provided because the write_to_s3 flag is set to True")
+        
+        # create a s3 obj and upload (which uses multipart)
+        s3_client = boto3.client('s3')
+        try:
+            response = s3_client.upload_file(local_filename, s3_bucket, f'{s3_prefix}{s3_filename}.gz')
+        except ClientError as e:
+            logger.error(e)
+        return False
     return state
 
 
