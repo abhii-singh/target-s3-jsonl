@@ -33,7 +33,7 @@ def persist_messages(
     destination_path,
     custom_name=None,
     do_timestamp_file=True,
-    write_to_s3=True,
+    write_to_s3=False,
     s3_bucket=None,
     s3_prefix=None,
 ):
